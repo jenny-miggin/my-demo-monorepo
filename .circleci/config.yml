@@ -1,0 +1,36 @@
+version: 2.1
+setup: true
+
+parameters:
+  base-revision:
+    type: string
+    default: "main"
+  output-path:
+    type: string
+    default: "/tmp/pipeline-parameters.json"
+
+orbs:
+  path-filtering: circleci/path-filtering@2.0
+  continuation: circleci/continuation@2.0
+
+jobs:
+  path-filter-and-params:
+    docker:
+      - image: cimg/python:3.9
+    steps:
+      - checkout
+      - path-filtering/set-parameters:
+          # Use the combined path mappings
+          mapping: |
+            packages/api/.* api true
+            packages/libs/.* libs true
+          base-revision: << pipeline.parameters.base-revision >>
+          output-path: << pipeline.parameters.output-path >>
+      - continuation/continue:
+          configuration_path: .circleci/continue_config.yml
+          parameters: << pipeline.parameters.output-path >>
+
+workflows:
+  setup-workflow:
+    jobs:
+      - path-filter-and-params

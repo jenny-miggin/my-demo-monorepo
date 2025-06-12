@@ -1,0 +1,67 @@
+version: 2.1
+
+parameters:
+  api:
+    type: boolean
+    default: false
+  libs:
+    type: boolean
+    default: false
+
+jobs:
+  trigger-pipeline:
+    parameters:
+      definition_id:
+        type: string
+        description: the ID for the Pipeline definiton I want to trigger. Default is "all-commits"
+        default: "abc123"
+      orb:
+        type: string
+        description: location of the orb I want to read
+        default: "https://raw.githubusercontent.com/jenny-miggin/centralised-config/refs/heads/main/.circleci/frontend-team/frontend-team.yml"
+      override-build-job:
+        type: string
+        description: name of the orb job to use in the override
+        default: "frontend-build"
+      override-deploy-job:
+        type: string
+        description: name of the orb job to use in the override
+        default: "frontend-build"
+    docker:
+      - image: cimg/base:2025.03
+    resource_class: small
+    steps:
+      - run: 
+          name: Trigger a pipeline in the centralised repo
+          command: |
+            curl -X POST https://circleci.com/api/v2/project/gh/jenny-miggin/centralised-config/pipeline/run \
+              --header "Circle-Token: $CIRCLECI_API_TOKEN" \
+              --header "content-type: application/json" \
+              --data '{
+                "definition_id": "<< parameters.definition_id >>",
+                "config": {"branch": "main"},
+                "checkout": {"branch": "main"},
+                "parameters": 
+                  {"orb": "<< parameters.orb >>", 
+                  "override-build-job": "<< parameters.override-build-job >>",
+                  "override-deploy-job": "<< parameters.override-deploy-job >>"}
+              }'
+
+
+workflows:
+  api:
+    when: << pipeline.parameters.api >>
+    jobs:
+      - trigger-pipeline:
+          orb: "https://raw.githubusercontent.com/jenny-miggin/centralised-config/refs/heads/main/.circleci/frontend-team/frontend-team.yml"
+          override-build-job: "frontend-build"
+          override-deploy-job: "frontend-deploy"
+          context: my-context
+  libs:
+    when: << pipeline.parameters.libs >>
+    jobs:
+      - trigger-pipeline:
+          orb: "https://raw.githubusercontent.com/jenny-miggin/centralised-config/refs/heads/main/.circleci/libs/libs.yml"
+          override-build-job: "libs-build"
+          override-deploy-job: "libs-deploy"
+          context: my-context
